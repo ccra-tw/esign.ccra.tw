@@ -33,7 +33,7 @@ ok(es_valid_id($id) && $err === null, '簽名＋截圖＋錄影＋同意可以�
 $m = es_load((string)$id);
 ok($m !== null && es_verify($m) === ['signature' => true, 'video' => true, 'snapshot' => true, 'seal' => true], '存檔後各雜湊與存證碼都吻合');
 ok($m['operator'] === 'worker@example.test' && $m['signed_at_client'] === '2026/10/29 15:00:01', '記錄操作同工；手機時間只留數字與時間符號');
-ok($m['gps'] === ['status' => 'ok', 'lat' => 25.03, 'lng' => 121.56, 'acc_m' => 8] && $m['face'] === ['status' => 'ok', 'checks' => 10, 'hits' => 10, 'ratio' => 1.0], '位置與臉部偵測結果正規化（有臉次數不超過檢查次數）');
+ok($m['gps'] == ['status' => 'ok', 'lat' => 25.03, 'lng' => 121.56, 'acc_m' => 8] && $m['face'] == ['status' => 'ok', 'checks' => 10, 'hits' => 10, 'ratio' => 1.0],   // JSON 存回後 1.0 會變成 1，用 == 比 '位置與臉部偵測結果正規化（有臉次數不超過檢查次數）');
 ok(es_gps(['gps_status' => 'denied', 'gps_lat' => '25']) === ['status' => 'denied'] && es_gps(['gps_status' => 'ok', 'gps_lat' => '999', 'gps_lng' => '1'])['status'] === 'invalid' && es_gps(['gps_status' => '<x>'])['status'] === 'none', 'GPS 不允許只記原因；亂填的不收');
 ok(es_read($m, 'sig') === $png && es_read($m, 'snap') === $jpg, '解密後簽名與截圖逐位元相同');
 $raw = file_get_contents("$tmp/records/$id/signature.png.enc") . file_get_contents("$tmp/records/$id/" . $m['video_file'] . '.enc');
@@ -54,7 +54,8 @@ ok(str_contains(file_get_contents("$tmp/audit.log"), '"action":"view"'), '調閱
 
 echo "每日存證碼清單與保存期限\n";
 $today = date('Y-m-d');
-ok(es_digest($today) === 1 && es_digest($today) === 1 && count(glob("$tmp/outbox/*.txt")) === 1, '當天清單寫進 outbox，重跑不重複產生');
+$d1 = es_digest($today); $d2 = es_digest($today); $nf = count(glob("$tmp/outbox/*.txt"));
+ok($d1 === 1 && $d2 === 1 && $nf === 1, "當天清單寫進 outbox，重跑不重複產生（{$d1}/{$d2}/{$nf}）");
 $body = file_get_contents("$tmp/outbox/digest-$today.txt");
 ok(str_contains($body, $m['seal']) && !str_contains($body, '測試甲'), '清單只有編號與存證碼，沒有姓名');
 $old = json_decode(file_get_contents("$tmp/records/$id/meta.json"), true);
