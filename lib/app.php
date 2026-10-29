@@ -46,6 +46,7 @@ function current_user(): array {
         http_response_code(403);
         exit('請由 https://esign.ccra.tw 登入後使用。');
     }
+    session_boot();   // 在任何輸出之前開 session，簽署頁的 CSRF 才存得進去（v0.1.0 上線後錯誤紀錄抓到）
     return ['email' => $email];
 }
 
