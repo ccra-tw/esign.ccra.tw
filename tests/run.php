@@ -25,7 +25,7 @@ $base = ['signer' => '測試甲', 'content' => '同意書（測試）', 'consent
 
 echo "存檔與驗證\n";
 ok(es_save(['signer' => '測試甲', 'content' => 'x'], $png, $mp4, $u)[0] === null, '沒勾同意錄影就退件');
-ok(es_save($base + ['content' => ''], $png, $mp4, $u)[0] === null || es_save(array_merge($base, ['content' => '']), $png, $mp4, $u)[0] === null, '沒填簽署內容就退件');
+ok(es_save(array_merge($base, ['content' => '']), $png, $mp4, $u)[0] === null, '沒填簽署內容就退件');
 ok(es_save($base, 'not-png', $mp4, $u)[0] === null, '沒有簽名就退件');
 ok(es_save($base, $png, $mp4, $u, 'not-a-jpeg')[0] === null, '完成截圖不是 JPEG 就退件');
 [$id, $err] = es_save($base + ['composite' => '1', 'signed_at_client' => '2026/10/29 15:00:01<script>', 'gps_status' => 'ok', 'gps_lat' => '25.03', 'gps_lng' => '121.56', 'gps_acc' => '8.4', 'face_status' => 'ok', 'face_checks' => '10', 'face_hits' => '99'], $png, $mp4, $u, $jpg);
