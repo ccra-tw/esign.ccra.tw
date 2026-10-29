@@ -63,6 +63,27 @@ $old['created_at'] = date('c', time() - (ES_KEEP_DAYS + 1) * 86400);
 file_put_contents("$tmp/records/$id/meta.json", json_encode($old, JSON_UNESCAPED_UNICODE));
 ok(es_purge_expired() === 1 && !is_dir("$tmp/records/$id"), '超過保存期限的紀錄會被刪除');
 
+echo "Cloudflare Access 登入驗證（JWT）\n";
+$pk = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => OPENSSL_KEYTYPE_RSA]);
+$pub = openssl_pkey_get_details($pk)['key'];
+file_put_contents("$tmp/secret.ini", "access_team = team.example\naccess_aud = AUD123\n");
+putenv("ESIGN_INI=$tmp/secret.ini");
+file_put_contents("$tmp/access_certs.json", json_encode([['kid' => 'k1', 'cert' => $pub]]));
+$b64 = fn($s) => rtrim(strtr(base64_encode($s), '+/', '-_'), '=');
+$mk = function (array $pl, string $kid = 'k1') use ($pk, $b64) {
+    $in = $b64(json_encode(['alg' => 'RS256', 'kid' => $kid])) . '.' . $b64(json_encode($pl));
+    openssl_sign($in, $sig, $pk, OPENSSL_ALGO_SHA256);
+    return $in . '.' . $b64($sig);
+};
+$good = ['aud' => ['AUD123'], 'iss' => 'https://team.example', 'exp' => time() + 600, 'email' => 'Worker@CCRA.org.tw'];
+ok(access_email($mk($good)) === 'worker@ccra.org.tw', '正確簽章、AUD、發行者、未過期 → 取得 Email');
+ok(access_email($mk(['aud' => ['OTHER']] + $good)) === null, 'AUD 不是本站的應用 → 擋');
+ok(access_email($mk(['exp' => time() - 10] + $good)) === null, '過期 → 擋');
+ok(access_email($mk(['iss' => 'https://evil.example'] + $good)) === null, '發行者不對 → 擋');
+$t = $mk($good); $parts = explode('.', $t); $parts[1] = $b64(json_encode(['email' => 'boss@ccra.org.tw'] + $good));
+ok(access_email(implode('.', $parts)) === null, '竄改內容（換 Email）→ 簽章對不上，擋');
+ok(access_email('') === null && access_email('a.b.c') === null, '沒有 JWT（只偽造 Email 標頭）→ 擋');
+
 echo "PHP 字串插值（避免 \"\$x：\" 這類全形標點緊接變數）\n";
 $bad = [];
 foreach (array_merge(glob(__DIR__ . '/../lib/*.php'), glob(__DIR__ . '/../public/*.php'), glob(__DIR__ . '/../bin/*.php')) as $f)
