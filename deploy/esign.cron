@@ -1,0 +1,2 @@
+# 電子簽章展示站：每日 00:07 產生前一天的存證碼清單（寫進 outbox，由資訊部取走寄出）
+7 0 * * * www-data php /var/www/esign.ccra.tw/bin/digest.php >> /var/log/esign-digest.log 2>&1

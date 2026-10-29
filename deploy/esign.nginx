@@ -1,0 +1,17 @@
+# esign.ccra.tw  電子簽章展示（熊哥 2026-10-29 從急難救助系統拆出、定網址）
+# 只聽 127.0.0.1：唯一進入路徑是 cloudflared → localhost；登入由 Cloudflare Access 把關。
+server {
+    listen 127.0.0.1:80;
+    server_name esign.ccra.tw;
+    root /var/www/esign.ccra.tw/public;
+    index index.php;
+    access_log /var/log/nginx/esign.ccra.tw.access.log;
+    error_log  /var/log/nginx/esign.ccra.tw.error.log;
+    client_max_body_size 25m;
+    location / { try_files $uri $uri/ =404; }
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/esign.sock;
+    }
+    location ~ /\. { deny all; return 404; }
+}
