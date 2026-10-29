@@ -56,12 +56,14 @@ function access_email(string $jwt): ?string {
     $c = host_config();
     $team = (string)($c['access_team'] ?? ''); $aud = (string)($c['access_aud'] ?? '');
     $p = explode('.', $jwt);
-    if (!$team || !$aud || count($p) !== 3) return null;
+    if (!$team || !$aud) { error_log('esign access: 主機未設定 access_team／access_aud'); return null; }
+    if (count($p) !== 3) { error_log('esign access: 沒有 JWT（Cf-Access-Jwt-Assertion 標頭 ' . ($jwt === '' ? '不存在' : '格式不對') . '）'); return null; }
     $hd = json_decode((string)b64url($p[0]), true); $pl = json_decode((string)b64url($p[1]), true); $sig = b64url($p[2]);
-    if (!is_array($hd) || !is_array($pl) || $sig === false || ($hd['alg'] ?? '') !== 'RS256') return null;
+    if (!is_array($hd) || !is_array($pl) || $sig === false || ($hd['alg'] ?? '') !== 'RS256') { error_log('esign access: JWT 解不開或演算法不是 RS256'); return null; }
     $pem = access_cert($team, (string)($hd['kid'] ?? ''));
-    if (!$pem || openssl_verify($p[0] . '.' . $p[1], $sig, $pem, OPENSSL_ALGO_SHA256) !== 1) return null;
-    if (!in_array($aud, (array)($pl['aud'] ?? []), true) || ($pl['iss'] ?? '') !== "https://$team" || (int)($pl['exp'] ?? 0) < time()) return null;
+    if (!$pem) { error_log('esign access: 取不到公開金鑰 kid=' . ($hd['kid'] ?? '')); return null; }
+    if (openssl_verify($p[0] . '.' . $p[1], $sig, $pem, OPENSSL_ALGO_SHA256) !== 1) { error_log('esign access: 簽章驗證失敗'); return null; }
+    if (!in_array($aud, (array)($pl['aud'] ?? []), true) || ($pl['iss'] ?? '') !== "https://$team" || (int)($pl['exp'] ?? 0) < time()) { error_log('esign access: aud／iss／exp 不符 iss=' . ($pl['iss'] ?? '')); return null; }
     $email = strtolower((string)($pl['email'] ?? ''));
     return filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
 }
